@@ -1,3 +1,6 @@
 [submodule "Submodule/imgui"]
 	path = Submodule/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Submodule/xegtao"]
+	path = Submodule/xegtao
+	url = https://github.com/GameTechDev/XeGTAO
