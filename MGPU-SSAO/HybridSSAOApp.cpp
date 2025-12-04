@@ -452,7 +452,7 @@ bool HybridSSAOApp::Initialize()
     LoadStudyTexture();
     LoadModels();
     CreateMaterials();
-    MipMasGenerate();
+    //MipMasGenerate();
 
     InitRenderPaths();
     InitSRVMemoryAndMaterials();
@@ -740,6 +740,7 @@ void HybridSSAOApp::InitRenderPaths()
     shadowPath = (std::make_shared<ShadowMap>(primeDevice, 4096, 4096));
 
     UIPath = std::make_shared<UILayer>(primeDevice, MainWindow->GetWindowHandle());
+    UIPath->SetXeGTAO(xegtaoPass.get());
 
     commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
     commandQueue->Flush();

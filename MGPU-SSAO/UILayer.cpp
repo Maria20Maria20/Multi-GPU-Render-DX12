@@ -5,6 +5,7 @@
 
 #include "GCommandList.h"
 #include "GDescriptorHeap.h"
+#include <Rendering/Shaders/XeGTAO.h>
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -96,6 +97,7 @@ void UILayer::Update()
     ImGui::NewFrame();
     ImGui::ShowDemoWindow();
     ShowMetrics();
+    ShowXeGTAOSettings();
 }
 
 void UILayer::ShowMetrics()
@@ -120,5 +122,19 @@ void UILayer::ShowMetrics()
     for (int n = 0; n < 100; n++)
         samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
     ImGui::PlotLines("Samples", samples, 100);
+    ImGui::End();
+}
+
+void UILayer::ShowXeGTAOSettings() 
+{
+    if (!xegtao)
+        return;
+
+    auto& settings = xegtao->GetSettings();
+
+    if (ImGui::Begin("XeGTAO Settings"))
+    {
+        XeGTAO::GTAOImGuiSettings(settings);
+    }
     ImGui::End();
 }

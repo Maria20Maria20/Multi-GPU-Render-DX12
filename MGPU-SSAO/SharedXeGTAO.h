@@ -52,6 +52,7 @@ public:
     const XeGTAOResources& GetSecondResources() const { return secondResources; }
     const SSAOCrossResources& GetCrossResources() const { return crossResources; }
     const GTAOSettings& GetSettings() const { return gtaoSettings; }
+    GTAOSettings& GetSettings() { return gtaoSettings; }
 
     void Initialize(const std::shared_ptr<GDevice>& PrimeDevice, const std::shared_ptr<GDevice>& SecondDevice,
                     const D3D12_INPUT_LAYOUT_DESC& layout, UINT width, UINT height);
