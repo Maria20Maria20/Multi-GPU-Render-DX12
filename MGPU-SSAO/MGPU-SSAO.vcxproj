@@ -78,6 +78,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -123,12 +124,14 @@
       <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;$(SolutionDir)Submodule\xegtao\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -162,6 +165,7 @@
     <ClCompile Include="HybridSSAOApp.cpp" />
     <ClCompile Include="SharedHBAO.cpp" />
     <ClCompile Include="SharedSSAO.cpp" />
+    <ClCompile Include="SharedXeGTAO.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="UILayer.cpp" />
   </ItemGroup>
@@ -194,6 +198,7 @@
     <ClInclude Include="HybridSSAOApp.h" />
     <ClInclude Include="SharedHBAO.h" />
     <ClInclude Include="SharedSSAO.h" />
+    <ClInclude Include="SharedXeGTAO.h" />
     <ClInclude Include="UILayer.h" />
   </ItemGroup>
   <ItemGroup>

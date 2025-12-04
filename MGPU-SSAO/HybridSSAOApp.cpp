@@ -17,6 +17,7 @@
 #include "Transform.h"
 #include "Window.h"
 #include "Services/States/WaitState.h"
+#include "SharedXeGTAO.h"
 
 HybridSSAOApp::HybridSSAOApp(const HINSTANCE hInstance) : D3DApp(hInstance), debugLogger(FileQueueWriter(std::filesystem::current_path() / "log.txt"))
 {
@@ -154,6 +155,14 @@ void HybridSSAOApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandList
             normalMapRtv = Resources.GetNormalMapRTV();
             normalMapDsv = Resources.GetDepthMapDSV();
         }
+        else if (IsUseXeGTAO) 
+        {
+            const XeGTAOResources& Resources = xegtaoPass->GetPrimeResources();
+            normalMap = Resources.GetNormalMap();
+            normalDepthMap = Resources.GetDepthMap();
+            normalMapRtv = Resources.GetNormalMapRTV();
+            normalMapDsv = Resources.GetDepthMapDSV();
+        }
         else
         {
             const SSAOResources& Resources = ssaoPass->GetPrimeResources();
@@ -215,6 +224,31 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
                 }
             }
         }
+        else if (IsUseXeGTAO) 
+        {
+            {
+                const auto& Resources = xegtaoPass->GetPrimeResources();
+                const auto& CrossResource = xegtaoPass->GetCrossResources();
+                cmdList->CopyResource(CrossResource.GetDepthMap().GetPrimeResource(), Resources.GetDepthMap());
+                cmdList->CopyResource(Resources.GetAmbientMap(), CrossResource.GetAmbientMap().GetPrimeResource());
+            }
+            {
+                auto secondQueue = secondDevice->GetCommandQueue();
+                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+                {
+                    const auto& Resources = xegtaoPass->GetSecondResources();
+                    const auto& CrossResource = xegtaoPass->GetCrossResources();
+                    const auto secondCmdList = secondQueue->GetCommandList();
+                    secondCmdList->CopyResource(Resources.GetDepthMap(), CrossResource.GetDepthMap().GetSharedResource());
+
+                    xegtaoPass->Compute(secondCmdList, currentFrameResource->SecondXeGTAOConstantUploadBuffer, Resources);
+
+                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(), Resources.GetAmbientMap());
+
+                    currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
+                }
+            }
+        }
         else
         {
             {
@@ -247,6 +281,8 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
     {
         if (IsUseHBAO)
             hbaoPass->Compute(cmdList, currentFrameResource->PrimeHBAOConstantUploadBuffer, hbaoPass->GetPrimeResources());
+        else if(IsUseXeGTAO)
+            xegtaoPass->Compute(cmdList, currentFrameResource->PrimeXeGTAOConstantUploadBuffer, xegtaoPass->GetPrimeResources());
         else
             ssaoPass->ComputeSsao(cmdList, currentFrameResource->PrimeSsaoConstantUploadBuffer, ssaoPass->GetPrimeResources(), 3);
     }
@@ -282,6 +318,8 @@ void HybridSSAOApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandLi
         cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
         if (IsUseHBAO)
             cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, hbaoPass->GetPrimeResources().GetAmbientMapSRV());
+        else if(IsUseXeGTAO)
+            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, xegtaoPass->GetPrimeResources().GetAmbientMapSRV());
         else
             cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssaoPass->GetPrimeResources().GetAmbientMapSRV(), 0);
 
@@ -360,7 +398,9 @@ void HybridSSAOApp::PopulateDebugCommands(const std::shared_ptr<GCommandList>& c
             if (IsUseHBAO)
                 PopulateDrawFullQuadTexture(cmdList, hbaoPass->GetPrimeResources().GetAmbientMapSRV(),
                                             0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-
+            else if(IsUseXeGTAO)
+                PopulateDrawFullQuadTexture(cmdList, xegtaoPass->GetPrimeResources().GetAmbientMapSRV(),
+                    0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
             else
                 PopulateDrawFullQuadTexture(cmdList, ssaoPass->GetPrimeResources().GetAmbientMapSRV(),
                                             0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
@@ -675,6 +715,7 @@ void HybridSSAOApp::InitRenderPaths()
 
     ssaoPass = std::make_shared<SharedSSAO>();
     hbaoPass = std::make_shared<SharedHBAO>();
+    xegtaoPass = std::make_shared<SharedXeGTAO>();
 
     const D3D12_INPUT_LAYOUT_DESC layoutDesc = {defaultInputLayout.data(), defaultInputLayout.size()};
 
@@ -688,6 +729,9 @@ void HybridSSAOApp::InitRenderPaths()
 
     hbaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
     hbaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+
+    xegtaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    xegtaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
     antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
                                                     MainWindow->GetClientHeight(), DXGI_FORMAT_D32_FLOAT));
@@ -1335,6 +1379,27 @@ void HybridSSAOApp::UpdateSsaoCB(const GameTimer& gt) const
         currentFrameResource->PrimeHBAOConstantUploadBuffer->CopyData(0, hbaoCB);
         currentFrameResource->SecondHBAOConstantUploadBuffer->CopyData(0, hbaoCB);
     }
+    {
+        GTAOConstants gtaoCB;
+
+        auto P = camera->GetProjectionMatrix();
+        const GTAOSettings& settings = xegtaoPass->GetSettings();
+
+        XeGTAO::GTAOUpdateConstants(
+            gtaoCB,
+            MainWindow->GetClientWidth(),
+            MainWindow->GetClientHeight(),
+            settings,
+            (const float*)&P,
+            false,
+            0
+            //frameCounter % 64  
+        );
+
+        currentFrameResource->PrimeXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
+        currentFrameResource->SecondXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
+    }
+
 }
 
 bool HybridSSAOApp::InitMainWindow()
@@ -1527,6 +1592,13 @@ LRESULT HybridSSAOApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wPa
                 IsUseHBAO = !IsUseHBAO;
                 Flush();
             }
+
+            if (keycode == (VK_F4) && keyboard.KeyIsPressed(VK_F4))
+            {
+                IsUseXeGTAO = !IsUseXeGTAO;
+                Flush();
+            }
+
 
             if (keycode == (VK_F9) && keyboard.KeyIsPressed(VK_F9))
             {

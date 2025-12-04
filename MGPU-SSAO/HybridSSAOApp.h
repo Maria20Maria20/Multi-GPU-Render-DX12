@@ -98,6 +98,7 @@ protected:
 
     bool IsUsingSharedSSAO = false;
     bool IsUseHBAO = false;
+    bool IsUseXeGTAO = true;
 
     UINT pathMapShow = 0;
     //off, shadowMap, ssaoMap
@@ -108,6 +109,7 @@ protected:
     std::shared_ptr<ShadowMap> shadowPath;
     std::shared_ptr<SharedSSAO> ssaoPass;
     std::shared_ptr<SharedHBAO> hbaoPass;
+    std::shared_ptr<SharedXeGTAO> xegtaoPass;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
 
     custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<
