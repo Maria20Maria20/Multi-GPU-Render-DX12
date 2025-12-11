@@ -26,11 +26,12 @@ namespace PEPEngine::Graphics
         const D3D_SHADER_MACRO* defines;
         std::string entryPoint;
         std::string target;
+        std::wstring customDir;
         bool IsInited = false;
 
     public:
         GShader(const std::wstring& fileName, ShaderType type, const D3D_SHADER_MACRO* defines = nullptr,
-                const std::string& entryPoint = "Main", const std::string& target = "ps_5_1");
+                const std::string& entryPoint = "Main", const std::string& target = "ps_5_1", const std::wstring& customDir = L"");
 
         GShader();
 

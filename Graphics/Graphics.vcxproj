@@ -163,6 +163,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CustomInclude.h" />
     <ClInclude Include="D3DShaderLoad.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GMeshBuffer.h" />
@@ -189,6 +190,7 @@
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CustomInclude.cpp" />
     <ClCompile Include="DirectXBuffers.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GMeshBuffer.cpp" />

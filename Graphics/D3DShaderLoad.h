@@ -1,6 +1,8 @@
 #pragma once
 #include <d3dcompiler.h>
 #include <fstream>
+
+#include "CustomInclude.h"
 #include "d3dUtil.h"
 
 namespace PEPEngine::Graphics
@@ -82,7 +84,8 @@ namespace PEPEngine::Graphics
         const std::wstring& filename,
         const D3D_SHADER_MACRO* defines,
         const std::string& entrypoint,
-        const std::string& target)
+        const std::string& target,
+        const std::wstring& customDir = L"")
     {
         UINT compileFlags = D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES | D3DCOMPILE_ALL_RESOURCES_BOUND;
 
@@ -91,6 +94,15 @@ namespace PEPEngine::Graphics
 #endif
 
         HRESULT hr = S_OK;
+
+        /*ID3DInclude* includer = D3D_COMPILE_STANDARD_FILE_INCLUDE;
+        std::unique_ptr<CustomInclude> customInclude;
+
+        if (!customDir.empty())
+        {
+            customInclude = std::make_unique<CustomInclude>(customDir);
+            includer = customInclude.get();
+        }*/
 
         ComPtr<ID3DBlob> byteCode = nullptr;
         ComPtr<ID3DBlob> errors;
