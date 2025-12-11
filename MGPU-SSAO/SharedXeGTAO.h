@@ -9,7 +9,7 @@
 #include "RenderModeFactory.h"
 #include "ShaderBuffersData.h"
 #include "SharedSSAO.h"
-#include <Rendering/Shaders/XeGTAO.h>
+#include "Shaders/XeGTAO.h"
 
 
 using namespace DirectX::SimpleMath;
@@ -22,19 +22,40 @@ using namespace Utils;
 using GTAOConstants = XeGTAO::GTAOConstants;
 using GTAOSettings = XeGTAO::GTAOSettings;
 
-class XeGTAOResources final : public virtual SSAOResources
+class XeGTAOResources final : public SSAOResources
 {
+public:
+    struct Pass
+    {
+        std::shared_ptr<GRootSignature> RootSignature;
+        std::shared_ptr<ComputePSO>     PSO;
+    };
+    std::shared_ptr<GDevice> device;
     GDescriptor ambientMapUAV;
     ComputePSO pso;
 
-    void RebuildDescriptors() const override;
-    void InitializeRS() override;
-    void BuildPSO(const D3D12_INPUT_LAYOUT_DESC& layout) override;
-public:
+    void RebuildDescriptors() const;
+    std::shared_ptr<GRootSignature> CreateXeGTAORootSignature(int srvCount,
+    int uavCount,
+    int extraCbvCount);
+    void BuildPSO();
+    void BuildPass(Pass& pass,
+    const std::wstring& fileName,
+    const std::string& entryPoint,
+    int srvCount,
+    int uavCount,
+    int cbvCount);
+    void ApplyPass(GCommandList& cmdList, Pass& pass) const;
+
+    Pass Prefilter;
+    Pass Main;
+    Pass Denoise;
+    Pass Composite;
+    
     const GDescriptor* GetAmbientMapUAV() const { return &ambientMapUAV; }
     const ComputePSO& GetPso() const { return pso; }
 
-    void Initialize(const std::shared_ptr<GDevice>& Device, const D3D12_INPUT_LAYOUT_DESC& layout) override;
+    void Initialize(const std::shared_ptr<GDevice>& Device, const D3D12_INPUT_LAYOUT_DESC& layout);
 };
 
 class SharedXeGTAO
@@ -58,4 +79,9 @@ public:
                     const D3D12_INPUT_LAYOUT_DESC& layout, UINT width, UINT height);
     void OnResize(UINT width, UINT height);
     void Compute(const std::shared_ptr<GCommandList>& cmdList, const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants, const XeGTAOResources& Resources) const;
+    void ExecutePass(
+    const std::shared_ptr<GCommandList>& cmdList,
+    const XeGTAOResources& Resources,
+    const XeGTAOResources::Pass& pass,
+    const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants) const;
 };

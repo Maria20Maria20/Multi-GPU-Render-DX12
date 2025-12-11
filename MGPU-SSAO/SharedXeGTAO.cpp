@@ -13,65 +13,108 @@ void XeGTAOResources::RebuildDescriptors() const
     GetAmbientMap().CreateUnorderedAccessView(&uavDesc, &ambientMapUAV);    
 }
 
-void XeGTAOResources::InitializeRS()
+std::shared_ptr<GRootSignature> XeGTAOResources::CreateXeGTAORootSignature(int srvCount,
+    int uavCount,
+    int extraCbvCount)
 {
-    aoRootSignature = std::make_shared<GRootSignature>();
-    
-    CD3DX12_DESCRIPTOR_RANGE depthTable;
-    depthTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0);
+    auto rs = std::make_shared<GRootSignature>();
 
-    CD3DX12_DESCRIPTOR_RANGE outputTable;
-    outputTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
+    // b0 - всегда GTAOConstants
+    rs->AddConstantBufferParameter(0);
 
-    aoRootSignature->AddConstantBufferParameter(0); //b0 - GTAOConstants
-    aoRootSignature->AddDescriptorParameter(&depthTable, 1); //t0-t4 - Depth MIPs
-    aoRootSignature->AddDescriptorParameter(&outputTable, 1); //u0 - Output AO
+    // SRV table
+    if (srvCount > 0)
+    {
+        CD3DX12_DESCRIPTOR_RANGE srvTable;
+        srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, srvCount, 0, 0);
+        rs->AddDescriptorParameter(&srvTable, 1);
+    }
 
+    // UAV table
+    if (uavCount > 0)
+    {
+        CD3DX12_DESCRIPTOR_RANGE uavTable;
+        uavTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, uavCount, 0, 0);
+        rs->AddDescriptorParameter(&uavTable, 1);
+    }
+
+    // Дополнительные CBV (b1, b2, ...)
+    for (int i = 0; i < extraCbvCount; ++i)
+    {
+        rs->AddConstantBufferParameter(i + 1);
+    }
+
+    // Samplers
     const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
-        0, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+        0, D3D12_FILTER_MIN_MAG_MIP_POINT,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 
     const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
-        1, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+        1, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 
-    std::array<CD3DX12_STATIC_SAMPLER_DESC, 2> staticSamplers =
-    {
-        pointClamp, linearClamp
-    };
+    rs->AddStaticSampler(pointClamp);
+    rs->AddStaticSampler(linearClamp);
+    rs->Initialize(device);
 
-    for (auto&& sampler : staticSamplers)
-    {
-        aoRootSignature->AddStaticSampler(sampler);
-    }
-    aoRootSignature->Initialize(device);
+    return rs;
 }
 
 void XeGTAOResources::Initialize(const std::shared_ptr<GDevice>& Device, const D3D12_INPUT_LAYOUT_DESC& layout)
 {
+    this->device = Device;
     SSAOResources::Initialize(Device, layout);
 
     ambientMapUAV = ambientMapSRV.Offset(1);
-    
+
+    BuildPSO();    
 }
 
-void XeGTAOResources::BuildPSO(const D3D12_INPUT_LAYOUT_DESC& layout)
+void XeGTAOResources::BuildPSO()
 {
-    auto shader = std::make_unique<GShader>(L"Shaders\\XeGTAO.hlsl", ComputeShader, nullptr,
-                                                       "CSMain",
-                                                       "cs_5_1");
+    BuildPass(Prefilter, L"Shaders\\XeGTAO_PrefilterDepths16x16.hlsl", "CSPrefilterDepths16x16",
+        1,5,0);
+    BuildPass(Main,      L"Shaders\\XeGTAO_MainPass.hlsl",            "CSGTAOHigh",
+        2,2,0);
+    BuildPass(Denoise,   L"Shaders\\XeGTAO_Denoise.hlsl",             "CSDenoisePass",
+        2,1,0);
+    BuildPass(Composite, L"Shaders\\XeGTAO_Composite.hlsl",           "Composite",
+        1,1,1);
+}
+
+void XeGTAOResources::BuildPass(Pass& pass,
+    const std::wstring& fileName,
+    const std::string& entryPoint,
+    int srvCount,
+    int uavCount,
+    int cbvCount)
+{
+    auto shader = std::make_unique<GShader>(
+            fileName,
+            ComputeShader, nullptr,
+            entryPoint,
+            "cs_5_1");
+
     shader->LoadAndCompile();
 
-    pso.SetShader(shader.get());
-    pso.SetRootSignature(GetRootSignature());
-    pso.Initialize(device);
+    pass.RootSignature = CreateXeGTAORootSignature(srvCount, uavCount, cbvCount);
+    
+    pass.PSO           = std::make_shared<ComputePSO>();
+    pass.PSO->SetShader(shader.get());
+    pass.PSO->SetRootSignature(*pass.RootSignature);
+    pass.PSO->Initialize(device);
 }
+
+void XeGTAOResources::ApplyPass(GCommandList& cmdList, Pass& pass) const
+{
+    cmdList.SetComputeRootSignature(*pass.RootSignature);
+    cmdList.SetPipelineState(*pass.PSO);
+}
+
 
 void SharedXeGTAO::Initialize(const std::shared_ptr<GDevice>& PrimeDevice, const std::shared_ptr<GDevice>& SecondDevice, const D3D12_INPUT_LAYOUT_DESC& layout, UINT width, UINT height)
 {
@@ -83,6 +126,7 @@ void SharedXeGTAO::Initialize(const std::shared_ptr<GDevice>& PrimeDevice, const
 
     crossResources.Initialize(primeResources, PrimeDevice, SecondDevice);
     crossResources.OnResize(width, height);
+
     OnResize(width, height);
 }
 
@@ -116,22 +160,31 @@ void SharedXeGTAO::Compute(const std::shared_ptr<GCommandList>& cmdList, const s
     //cmdList->TransitionBarrier(Resources.GetRandomVectorMap(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     //cmdList->TransitionBarrier(Resources.GetAmbientMap(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     //cmdList->FlushResourceBarriers();
-    
-    cmdList->SetComputeRootSignature(Resources.GetRootSignature());
-    cmdList->SetPipelineState(Resources.GetPso());
-    cmdList->SetDescriptorsHeap(Resources.GetAmbientMapSRV());
 
-    cmdList->SetComputeRootConstantBufferView(0, *Constants.get());
-    cmdList->SetComputeRootDescriptorTable(1,Resources.GetDepthMapSRV());
-    cmdList->SetComputeRootDescriptorTable(2, Resources.GetAmbientMapUAV());
-    
-    auto tgx = IntDivRoundUp(RenderTargetWidth, XE_GTAO_NUMTHREADS_X);
-    auto tgy = IntDivRoundUp(RenderTargetHeight, XE_GTAO_NUMTHREADS_Y);
-    cmdList->Dispatch(tgx, tgy, 1);
+    ExecutePass(cmdList, Resources, Resources.Prefilter, Constants);
+    ExecutePass(cmdList, Resources, Resources.Main, Constants);
+    ExecutePass(cmdList, Resources, Resources.Denoise, Constants);
+    ExecutePass(cmdList, Resources, Resources.Composite, Constants);
 
     cmdList->TransitionBarrier(Resources.GetAmbientMap(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList->FlushResourceBarriers();
     cmdList->EndMark();
 }
 
+void SharedXeGTAO::ExecutePass(
+    const std::shared_ptr<GCommandList>& cmdList,
+    const XeGTAOResources& Resources,
+    const XeGTAOResources::Pass& pass,
+    const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants) const
+{
+    Resources.ApplyPass(*cmdList, const_cast<XeGTAOResources::Pass&>(pass));
+    cmdList->SetDescriptorsHeap(Resources.GetAmbientMapSRV());
+    cmdList->SetComputeRootConstantBufferView(0, *Constants.get());
+    cmdList->SetComputeRootDescriptorTable(1, Resources.GetDepthMapSRV());
+    cmdList->SetComputeRootDescriptorTable(2, Resources.GetAmbientMapUAV());
+
+    auto tgx = IntDivRoundUp(RenderTargetWidth, XE_GTAO_NUMTHREADS_X);
+    auto tgy = IntDivRoundUp(RenderTargetHeight, XE_GTAO_NUMTHREADS_Y);
+    cmdList->Dispatch(tgx, tgy, 1);
+}
 

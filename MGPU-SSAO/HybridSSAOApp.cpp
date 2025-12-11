@@ -19,7 +19,9 @@
 #include "Services/States/WaitState.h"
 #include "SharedXeGTAO.h"
 
-HybridSSAOApp::HybridSSAOApp(const HINSTANCE hInstance) : D3DApp(hInstance), debugLogger(FileQueueWriter(std::filesystem::current_path() / "log.txt"))
+HybridSSAOApp::HybridSSAOApp(const HINSTANCE hInstance) : D3DApp(hInstance),
+                                                          debugLogger(FileQueueWriter(
+                                                              std::filesystem::current_path() / "log.txt"))
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -155,7 +157,7 @@ void HybridSSAOApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandList
             normalMapRtv = Resources.GetNormalMapRTV();
             normalMapDsv = Resources.GetDepthMapDSV();
         }
-        else if (IsUseXeGTAO) 
+        else if (IsUseXeGTAO)
         {
             const XeGTAOResources& Resources = xegtaoPass->GetPrimeResources();
             normalMap = Resources.GetNormalMap();
@@ -209,22 +211,25 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
             }
             {
                 auto secondQueue = secondDevice->GetCommandQueue();
-                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(
+                    currentFrameResource->SecondRenderFenceValue))
                 {
                     const auto& Resources = hbaoPass->GetSecondResources();
                     const auto& CrossResource = hbaoPass->GetCrossResources();
                     const auto secondCmdList = secondQueue->GetCommandList();
-                    secondCmdList->CopyResource(Resources.GetDepthMap(), CrossResource.GetDepthMap().GetSharedResource());
+                    secondCmdList->CopyResource(Resources.GetDepthMap(),
+                                                CrossResource.GetDepthMap().GetSharedResource());
 
                     hbaoPass->Compute(secondCmdList, currentFrameResource->SecondHBAOConstantUploadBuffer, Resources);
 
-                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(), Resources.GetAmbientMap());
+                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(),
+                                                Resources.GetAmbientMap());
 
                     currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
                 }
             }
         }
-        else if (IsUseXeGTAO) 
+        else if (IsUseXeGTAO)
         {
             {
                 const auto& Resources = xegtaoPass->GetPrimeResources();
@@ -234,16 +239,20 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
             }
             {
                 auto secondQueue = secondDevice->GetCommandQueue();
-                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(
+                    currentFrameResource->SecondRenderFenceValue))
                 {
                     const auto& Resources = xegtaoPass->GetSecondResources();
                     const auto& CrossResource = xegtaoPass->GetCrossResources();
                     const auto secondCmdList = secondQueue->GetCommandList();
-                    secondCmdList->CopyResource(Resources.GetDepthMap(), CrossResource.GetDepthMap().GetSharedResource());
+                    secondCmdList->CopyResource(Resources.GetDepthMap(),
+                                                CrossResource.GetDepthMap().GetSharedResource());
 
-                    xegtaoPass->Compute(secondCmdList, currentFrameResource->SecondXeGTAOConstantUploadBuffer, Resources);
+                    xegtaoPass->Compute(secondCmdList, currentFrameResource->SecondXeGTAOConstantUploadBuffer,
+                                        Resources);
 
-                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(), Resources.GetAmbientMap());
+                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(),
+                                                Resources.GetAmbientMap());
 
                     currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
                 }
@@ -260,17 +269,22 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
             }
             {
                 auto secondQueue = secondDevice->GetCommandQueue();
-                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+                if (currentFrameResource->SecondRenderFenceValue == 0 || secondQueue->IsFinish(
+                    currentFrameResource->SecondRenderFenceValue))
                 {
                     const auto& Resources = ssaoPass->GetSecondResource();
                     const auto& CrossResource = ssaoPass->GetCrossResources();
                     const auto secondCmdList = secondQueue->GetCommandList();
-                    secondCmdList->CopyResource(Resources.GetNormalMap(), CrossResource.GetNormalMap().GetSharedResource());
-                    secondCmdList->CopyResource(Resources.GetDepthMap(), CrossResource.GetDepthMap().GetSharedResource());
+                    secondCmdList->CopyResource(Resources.GetNormalMap(),
+                                                CrossResource.GetNormalMap().GetSharedResource());
+                    secondCmdList->CopyResource(Resources.GetDepthMap(),
+                                                CrossResource.GetDepthMap().GetSharedResource());
 
-                    ssaoPass->ComputeSsao(secondCmdList, currentFrameResource->SecondSsaoConstantUploadBuffer, Resources, 1);
+                    ssaoPass->ComputeSsao(secondCmdList, currentFrameResource->SecondSsaoConstantUploadBuffer,
+                                          Resources, 1);
 
-                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(), Resources.GetAmbientMap());
+                    secondCmdList->CopyResource(CrossResource.GetAmbientMap().GetSharedResource(),
+                                                Resources.GetAmbientMap());
 
                     currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
                 }
@@ -280,11 +294,14 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
     else
     {
         if (IsUseHBAO)
-            hbaoPass->Compute(cmdList, currentFrameResource->PrimeHBAOConstantUploadBuffer, hbaoPass->GetPrimeResources());
-        else if(IsUseXeGTAO)
-            xegtaoPass->Compute(cmdList, currentFrameResource->PrimeXeGTAOConstantUploadBuffer, xegtaoPass->GetPrimeResources());
+            hbaoPass->Compute(cmdList, currentFrameResource->PrimeHBAOConstantUploadBuffer,
+                              hbaoPass->GetPrimeResources());
+        else if (IsUseXeGTAO)
+            xegtaoPass->Compute(cmdList, currentFrameResource->PrimeXeGTAOConstantUploadBuffer,
+                                xegtaoPass->GetPrimeResources());
         else
-            ssaoPass->ComputeSsao(cmdList, currentFrameResource->PrimeSsaoConstantUploadBuffer, ssaoPass->GetPrimeResources(), 3);
+            ssaoPass->ComputeSsao(cmdList, currentFrameResource->PrimeSsaoConstantUploadBuffer,
+                                  ssaoPass->GetPrimeResources(), 3);
     }
 }
 
@@ -317,11 +334,14 @@ void HybridSSAOApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandLi
 
         cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
         if (IsUseHBAO)
-            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, hbaoPass->GetPrimeResources().GetAmbientMapSRV());
-        else if(IsUseXeGTAO)
-            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, xegtaoPass->GetPrimeResources().GetAmbientMapSRV());
+            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap,
+                                            hbaoPass->GetPrimeResources().GetAmbientMapSRV());
+        else if (IsUseXeGTAO)
+            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap,
+                                            xegtaoPass->GetPrimeResources().GetAmbientMapSRV());
         else
-            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssaoPass->GetPrimeResources().GetAmbientMapSRV(), 0);
+            cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap,
+                                            ssaoPass->GetPrimeResources().GetAmbientMapSRV(), 0);
 
 
         cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox));
@@ -372,13 +392,15 @@ void HybridSSAOApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>
 }
 
 void HybridSSAOApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
-                                                const GDescriptor* renderTextureSRVMemory, const UINT renderTextureMemoryOffset,
+                                                const GDescriptor* renderTextureSRVMemory,
+                                                const UINT renderTextureMemoryOffset,
                                                 const GraphicPSO& pso) const
 {
     cmdList->SetPipelineState(pso);
 
     cmdList->SetDescriptorsHeap(renderTextureSRVMemory);
-    cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
+    cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory,
+                                            renderTextureMemoryOffset);
 
     PopulateDrawCommands(cmdList, (RenderMode::Quad));
 }
@@ -398,9 +420,9 @@ void HybridSSAOApp::PopulateDebugCommands(const std::shared_ptr<GCommandList>& c
             if (IsUseHBAO)
                 PopulateDrawFullQuadTexture(cmdList, hbaoPass->GetPrimeResources().GetAmbientMapSRV(),
                                             0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-            else if(IsUseXeGTAO)
+            else if (IsUseXeGTAO)
                 PopulateDrawFullQuadTexture(cmdList, xegtaoPass->GetPrimeResources().GetAmbientMapSRV(),
-                    0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+                                            0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
             else
                 PopulateDrawFullQuadTexture(cmdList, ssaoPass->GetPrimeResources().GetAmbientMapSRV(),
                                             0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
@@ -452,7 +474,10 @@ bool HybridSSAOApp::Initialize()
     LoadStudyTexture();
     LoadModels();
     CreateMaterials();
-    //MipMasGenerate();
+    if (!IsUseXeGTAO)
+    {
+        MipMasGenerate();
+    }
 
     InitRenderPaths();
     InitSRVMemoryAndMaterials();
@@ -472,7 +497,8 @@ bool HybridSSAOApp::Initialize()
 #endif
 
 
-    auto& NativeSSAOState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native SSAO ", *primeDevice, *secondDevice)));
+    auto& NativeSSAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native SSAO ", *primeDevice, *secondDevice)));
     NativeSSAOState.OnEnter = [](FileQueueWriter& logs)
     {
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
@@ -481,7 +507,8 @@ bool HybridSSAOApp::Initialize()
     NativeSSAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
     {
         Benchmark::PrintStatsCSV(ts, logs);
-        MainWindow->SetWindowTitle(L"Native SSAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+        MainWindow->SetWindowTitle(
+            L"Native SSAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
     };
 
     NativeSSAOState.OnExit = [this](FileQueueWriter& logs)
@@ -490,7 +517,8 @@ bool HybridSSAOApp::Initialize()
         Flush();
     };
 
-    auto& HybridSSAOState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid SSAO ", *primeDevice, *secondDevice)));
+    auto& HybridSSAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid SSAO ", *primeDevice, *secondDevice)));
     HybridSSAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
@@ -500,7 +528,8 @@ bool HybridSSAOApp::Initialize()
     HybridSSAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
     {
         Benchmark::PrintStatsCSV(ts, logs);
-        MainWindow->SetWindowTitle(L"Hybrid SSAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+        MainWindow->SetWindowTitle(
+            L"Hybrid SSAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
     };
     HybridSSAOState.OnExit = [this](FileQueueWriter& logs)
     {
@@ -510,7 +539,8 @@ bool HybridSSAOApp::Initialize()
     };
 
 
-    auto& NativeHBAOState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native HBAO ", *primeDevice, *secondDevice)));
+    auto& NativeHBAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native HBAO ", *primeDevice, *secondDevice)));
     NativeHBAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
@@ -519,7 +549,8 @@ bool HybridSSAOApp::Initialize()
     NativeHBAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
     {
         Benchmark::PrintStatsCSV(ts, logs);
-        MainWindow->SetWindowTitle(L"Native HBAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+        MainWindow->SetWindowTitle(
+            L"Native HBAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
     };
     NativeHBAOState.OnExit = [this](FileQueueWriter& logs)
     {
@@ -527,7 +558,8 @@ bool HybridSSAOApp::Initialize()
         Flush();
     };
 
-    auto& HybridHBAOState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid HBAO ", *primeDevice, *secondDevice)));
+    auto& HybridHBAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid HBAO ", *primeDevice, *secondDevice)));
     HybridHBAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
@@ -537,7 +569,8 @@ bool HybridSSAOApp::Initialize()
     HybridHBAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
     {
         Benchmark::PrintStatsCSV(ts, logs);
-        MainWindow->SetWindowTitle(L"Hybrid HBAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+        MainWindow->SetWindowTitle(
+            L"Hybrid HBAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
     };
     HybridHBAOState.OnExit = [this](FileQueueWriter& logs)
     {
@@ -608,7 +641,8 @@ void HybridSSAOApp::InitFrameResource()
 {
     for (int i = 0; i < globalCountFrameResources; ++i)
     {
-        frameResources.emplace_back(std::make_unique<FrameResource>(primeDevice, secondDevice, 2, assets->GetMaterials().size()));
+        frameResources.emplace_back(
+            std::make_unique<FrameResource>(primeDevice, secondDevice, 2, assets->GetMaterials().size()));
     }
     debugLogger.PushMessage(std::wstring(L"\nInit FrameResource "));
 }
@@ -727,10 +761,12 @@ void HybridSSAOApp::InitRenderPaths()
         MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
     ssaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-    hbaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    hbaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(),
+                         MainWindow->GetClientHeight());
     hbaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-    xegtaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    xegtaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(),
+                           MainWindow->GetClientHeight());
     xegtaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
     antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
@@ -1400,7 +1436,6 @@ void HybridSSAOApp::UpdateSsaoCB(const GameTimer& gt) const
         currentFrameResource->PrimeXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
         currentFrameResource->SecondXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
     }
-
 }
 
 bool HybridSSAOApp::InitMainWindow()
