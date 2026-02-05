@@ -29,6 +29,9 @@ public:
     {
         std::shared_ptr<GRootSignature> RootSignature;
         std::shared_ptr<ComputePSO>     PSO;
+        int srvCount = 0;
+        int uavCount = 0;
+        int extraCbvCount = 0;
     };
     std::shared_ptr<GDevice> device;
     GDescriptor ambientMapUAV;
