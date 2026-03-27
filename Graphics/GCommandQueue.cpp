@@ -86,17 +86,30 @@ namespace PEPEngine::Graphics
         {
             return 0;
         }
+        if (index >= globalCountFrameResources)
+        {
+            return 0;
+        }
 
         readRange.Begin = 2 * index * sizeof(UINT64);
         readRange.End = readRange.Begin + 2 * sizeof(UINT64);
 
-        (timestampResultBuffer.value().GetD3D12Resource()->Map(0, &readRange, &mappedData));
+        ID3D12Resource* pResource = timestampResultBuffer.value().GetD3D12Resource().Get();
+        if (!pResource)
+            return 0;
+
+        HRESULT hr = pResource->Map(0, &readRange, &mappedData);
+        if (FAILED(hr) || mappedData == nullptr)
+        {
+            return 0;
+        }
 
         const UINT64* pTimestamps = reinterpret_cast<UINT64*>(static_cast<UINT8*>(mappedData) + readRange.Begin);
         const UINT64 timeStampDelta = pTimestamps[1] - pTimestamps[0];
 
         // Unmap with an empty range (written range).
-        timestampResultBuffer.value().GetD3D12Resource()->Unmap(0, &emptyRange);
+        pResource->Unmap(0, &emptyRange);
+        mappedData = nullptr;
 
         // Calculate the GPU execution time in microseconds.
         return (timeStampDelta * 1000000) / GetTimestampFreq();
