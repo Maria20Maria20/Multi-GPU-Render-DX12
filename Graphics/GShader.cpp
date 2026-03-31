@@ -4,9 +4,10 @@
 namespace PEPEngine::Graphics
 {
     GShader::GShader(const std::wstring& fileName, const ShaderType type, const D3D_SHADER_MACRO* defines,
-                     const std::string& entryPoint, const std::string& target, const std::wstring& customDir) : FileName(fileName), type(type),
+                     const std::string& entryPoint, const std::string& target, const std::wstring& customDir,
+                     const UINT extraCompileFlags) : FileName(fileName), type(type),
         defines(defines), entryPoint(entryPoint),
-        target(target), customDir(customDir)
+        target(target), customDir(customDir), extraCompileFlags(extraCompileFlags)
     {
     }
 
@@ -17,7 +18,7 @@ namespace PEPEngine::Graphics
     void GShader::LoadAndCompile()
     {
         if (IsInited) return;
-        shaderBlob = CompileShader(FileName, defines, entryPoint, target, customDir);
+        shaderBlob = CompileShader(FileName, defines, entryPoint, target, customDir, extraCompileFlags);
         IsInited = true;
     }
 

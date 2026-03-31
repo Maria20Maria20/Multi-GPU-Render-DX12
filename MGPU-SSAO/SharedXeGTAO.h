@@ -82,11 +82,13 @@ private:
     void RebuildXeGTAOInternalDescriptors() const;
 
     GTexture xeWorkingDepth;
+    // Ping-pong: two R32_UINT buffers for denoise passes (read one, write the other, then swap roles).
     GTexture xeAoPing;
     GTexture xeAoPong;
     GTexture xeEdges;
 
     GDescriptor xeDescriptorBase{};
+    // Count of consecutive CBV_SRV_UAV descriptors: 0–4 depth mip UAVs, 5–6 SRVs (depth pyramid + normals), 7–13 AO/edges SRV/UAV.
     static constexpr UINT XeDescriptorCount = 14;
 };
 

@@ -593,14 +593,18 @@ bool HybridSSAOApp::Initialize()
 
     int TestTime = 10;
 #if !defined(DEBUG) && !defined(_DEBUG)
-    TestTime = 120;
+    TestTime = 10;
 #endif
 
 
     auto& NativeSSAOState = benchmark.AddState<WaitState>(
         TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native SSAO ", *primeDevice, *secondDevice)));
-    NativeSSAOState.OnEnter = [](FileQueueWriter& logs)
+    NativeSSAOState.OnEnter = [this](FileQueueWriter& logs)
     {
+        Flush();
+        IsUsingSharedSSAO = false;
+        IsUseHBAO = false;
+        IsUseXeGTAO = false;
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
     };
 
@@ -622,7 +626,10 @@ bool HybridSSAOApp::Initialize()
     HybridSSAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
-        SwitchDevice();
+        Flush();
+        IsUsingSharedSSAO = true;
+        IsUseHBAO = false;
+        IsUseXeGTAO = false;
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
     };
     HybridSSAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
@@ -644,6 +651,10 @@ bool HybridSSAOApp::Initialize()
     NativeHBAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
+        Flush();
+        IsUsingSharedSSAO = false;
+        IsUseHBAO = true;
+        IsUseXeGTAO = false;
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
     };
     NativeHBAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
@@ -677,7 +688,6 @@ bool HybridSSAOApp::Initialize()
         logs.WriteAllLog();
         SwitchDevice();
         Flush();
-        IsStop = true;
     };
 
     auto& NativeXeGTAOState = benchmark.AddState<WaitState>(
@@ -685,6 +695,10 @@ bool HybridSSAOApp::Initialize()
     NativeXeGTAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
+        Flush();
+        IsUsingSharedSSAO = false;
+        IsUseHBAO = false;
+        IsUseXeGTAO = true;
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
     };
     NativeXeGTAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
@@ -704,8 +718,11 @@ bool HybridSSAOApp::Initialize()
     HybridXeGTAOState.OnEnter = [this](FileQueueWriter& logs)
     {
         ResetCamera();
+        Flush();
+        IsUsingSharedSSAO = true;
+        IsUseHBAO = false;
+        IsUseXeGTAO = true;
         logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
-        SwitchDevice();
     };
     HybridXeGTAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
     {
@@ -722,6 +739,8 @@ bool HybridSSAOApp::Initialize()
     };
 
 
+    // Release: runs all WaitState benchmarks; CSV logs are written under BenchmarkLogs/ (process working directory).
+    // Debug: benchmark is idle unless you call benchmark.Start() here to generate the same log files.
 #if !defined(DEBUG) && !defined(_DEBUG)
     benchmark.Start();
 #endif
@@ -1650,6 +1669,11 @@ void HybridSSAOApp::Flush()
 
 LRESULT HybridSSAOApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
+    if (MainWindow && (msg == WM_CLOSE || (msg == WM_DESTROY && hwnd == MainWindow->GetWindowHandle())))
+    {
+        benchmark.Shutdown();
+    }
+
     UIPath->MsgProc(hwnd, msg, wParam, lParam);
 
 #if defined(DEBUG) || defined(_DEBUG)

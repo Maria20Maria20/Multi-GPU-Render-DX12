@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <memory>
 #include <vector>
 
@@ -18,6 +18,10 @@ class BenchmarkService final
 
 public:
     void Start();
+
+    // Calls Exit() on the active state (e.g. WaitState OnExit -> WriteAllLog) then clears it.
+    // Use when closing the app before the benchmark would normally complete.
+    void Shutdown();
 
     template <class T = BenchmarkState, typename... Args>
     inline T& AddState(Args&&... args)

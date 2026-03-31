@@ -85,13 +85,15 @@ namespace PEPEngine::Graphics
         const D3D_SHADER_MACRO* defines,
         const std::string& entrypoint,
         const std::string& target,
-        const std::wstring& customDir = L"")
+        const std::wstring& customDir = L"",
+        UINT extraCompileFlags = 0)
     {
         UINT compileFlags = D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES | D3DCOMPILE_ALL_RESOURCES_BOUND;
 
 #if defined(DEBUG) || defined(_DEBUG)
         compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
+        compileFlags |= extraCompileFlags;
 
         HRESULT hr = S_OK;
 

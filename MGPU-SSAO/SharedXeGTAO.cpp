@@ -1,5 +1,7 @@
 #include "SharedXeGTAO.h"
 
+#include <d3dcompiler.h>
+
 #include "GCommandList.h"
 
 namespace
@@ -235,7 +237,9 @@ void XeGTAOResources::BuildPass(Pass& pass,
         fileName,
         ComputeShader, nullptr,
         entryPoint,
-        "cs_5_1");
+        "cs_5_1",
+        L"",
+        D3DCOMPILE_SKIP_OPTIMIZATION);
 
     shader->LoadAndCompile();
 
@@ -371,7 +375,7 @@ void SharedXeGTAO::Compute(const std::shared_ptr<GCommandList>& cmdList,
         cmdList->TransitionBarrier(Resources.GetXeAoPing(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         cmdList->FlushResourceBarriers();
 
-        // Last denoise -> ping (финальный uint AO для Composite)
+        // Last denoise pass writes ping (final uint AO for Composite)
         Resources.ApplyPass(*cmdList, const_cast<XeGTAOResources&>(Resources).DenoiseLast);
         cmdList->SetDescriptorsHeap(Resources.GetAmbientMapSRV());
         cmdList->SetComputeRootConstantBufferView(0, *Constants.get());
