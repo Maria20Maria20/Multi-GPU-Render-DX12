@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "d3dUtil.h"
+#include "DirectXBuffers.h"
 #include "GCrossAdapterResource.h"
 #include "GraphicPSO.h"
 #include "GDescriptor.h"
@@ -22,13 +23,20 @@ using namespace Utils;
 using GTAOConstants = XeGTAO::GTAOConstants;
 using GTAOSettings = XeGTAO::GTAOSettings;
 
+struct XeGTAOCompositeConstants
+{
+    Vector4 GTAOResolutionScale;
+    float Intensity;
+    float _padding[3];
+};
+
 class XeGTAOResources final : public SSAOResources
 {
 public:
     struct Pass
     {
         std::shared_ptr<GRootSignature> RootSignature;
-        std::shared_ptr<ComputePSO>     PSO;
+        std::shared_ptr<ComputePSO> PSO;
         int srvCount = 0;
         int uavCount = 0;
         int extraCbvCount = 0;
@@ -37,28 +45,49 @@ public:
     GDescriptor ambientMapUAV;
     ComputePSO pso;
 
-    void RebuildDescriptors() const;
+    void RebuildDescriptors() const override;
     std::shared_ptr<GRootSignature> CreateXeGTAORootSignature(int srvCount,
-    int uavCount,
-    int extraCbvCount);
+                                                                int uavCount,
+                                                                int extraCbvCount);
     void BuildPSO();
     void BuildPass(Pass& pass,
-    const std::wstring& fileName,
-    const std::string& entryPoint,
-    int srvCount,
-    int uavCount,
-    int cbvCount);
+                   const std::wstring& fileName,
+                   const std::string& entryPoint,
+                   int srvCount,
+                   int uavCount,
+                   int cbvCount);
     void ApplyPass(GCommandList& cmdList, Pass& pass) const;
+
+    void OnResize(uint32_t width, uint32_t height) override;
 
     Pass Prefilter;
     Pass Main;
     Pass Denoise;
+    Pass DenoiseLast;
     Pass Composite;
-    
+
     const GDescriptor* GetAmbientMapUAV() const { return &ambientMapUAV; }
     const ComputePSO& GetPso() const { return pso; }
 
     void Initialize(const std::shared_ptr<GDevice>& Device, const D3D12_INPUT_LAYOUT_DESC& layout);
+
+    const GTexture& GetXeWorkingDepth() const { return xeWorkingDepth; }
+    const GTexture& GetXeAoPing() const { return xeAoPing; }
+    const GTexture& GetXeAoPong() const { return xeAoPong; }
+    const GTexture& GetXeEdges() const { return xeEdges; }
+    const GDescriptor* GetXeDescriptorBase() const { return &xeDescriptorBase; }
+
+private:
+    void EnsureWorkingTextures(uint32_t width, uint32_t height);
+    void RebuildXeGTAOInternalDescriptors() const;
+
+    GTexture xeWorkingDepth;
+    GTexture xeAoPing;
+    GTexture xeAoPong;
+    GTexture xeEdges;
+
+    GDescriptor xeDescriptorBase{};
+    static constexpr UINT XeDescriptorCount = 14;
 };
 
 class SharedXeGTAO
@@ -68,8 +97,11 @@ class SharedXeGTAO
     SSAOCrossResources crossResources;
 
     GTAOSettings gtaoSettings;
-    UINT RenderTargetWidth;
-    UINT RenderTargetHeight;
+    UINT RenderTargetWidth = 0;
+    UINT RenderTargetHeight = 0;
+
+    std::shared_ptr<ConstantUploadBuffer<XeGTAOCompositeConstants>> primeCompositeCB;
+    std::shared_ptr<ConstantUploadBuffer<XeGTAOCompositeConstants>> secondCompositeCB;
 
 public:
     const XeGTAOResources& GetPrimeResources() const { return primeResources; }
@@ -81,10 +113,7 @@ public:
     void Initialize(const std::shared_ptr<GDevice>& PrimeDevice, const std::shared_ptr<GDevice>& SecondDevice,
                     const D3D12_INPUT_LAYOUT_DESC& layout, UINT width, UINT height);
     void OnResize(UINT width, UINT height);
-    void Compute(const std::shared_ptr<GCommandList>& cmdList, const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants, const XeGTAOResources& Resources) const;
-    void ExecutePass(
-    const std::shared_ptr<GCommandList>& cmdList,
-    const XeGTAOResources& Resources,
-    const XeGTAOResources::Pass& pass,
-    const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants) const;
+    void Compute(const std::shared_ptr<GCommandList>& cmdList,
+                 const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants,
+                 const XeGTAOResources& Resources);
 };

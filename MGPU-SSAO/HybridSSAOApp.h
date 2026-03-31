@@ -47,6 +47,8 @@ protected:
                                      const GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset,
                                      const GraphicPSO& pso) const;
     void PopulateDebugCommands(const std::shared_ptr<GCommandList>& cmdList);
+    void UpdateAoPreviewViewport();
+    void PopulateAoPreviewCorner(const std::shared_ptr<GCommandList>& cmdList);
     void Draw(const GameTimer& gt) override;
    
     void InitDevices();
@@ -83,6 +85,10 @@ protected:
 
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect;
+
+    D3D12_VIEWPORT aoPreviewViewport{};
+    D3D12_RECT aoPreviewScissor{};
+    bool showAoPreviewInCorner = true;
 
     std::shared_ptr<AssetsLoader> assets;
 

@@ -1,5 +1,6 @@
 #include "HybridSSAOApp.h"
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -433,6 +434,103 @@ void HybridSSAOApp::PopulateDebugCommands(const std::shared_ptr<GCommandList>& c
     }
 }
 
+void HybridSSAOApp::UpdateAoPreviewViewport()
+{
+    if (MainWindow == nullptr)
+    {
+        return;
+    }
+
+    UINT mapW = 1u;
+    UINT mapH = 1u;
+    if (IsUseHBAO && hbaoPass != nullptr)
+    {
+        mapW = std::max(1u, static_cast<UINT>(MainWindow->GetClientWidth()));
+        mapH = std::max(1u, static_cast<UINT>(MainWindow->GetClientHeight()));
+    }
+    else if (IsUseXeGTAO && xegtaoPass != nullptr)
+    {
+        mapW = std::max(1u, static_cast<UINT>(MainWindow->GetClientWidth()));
+        mapH = std::max(1u, static_cast<UINT>(MainWindow->GetClientHeight()));
+    }
+    else if (ssaoPass != nullptr)
+    {
+        mapW = std::max(1u, ssaoPass->SsaoMapWidth());
+        mapH = std::max(1u, ssaoPass->SsaoMapHeight());
+    }
+
+    const float aspect = static_cast<float>(mapW) / static_cast<float>(mapH);
+
+    constexpr float margin = 16.0f;
+    const float maxPreviewH = std::min(240.0f, fullViewport.Height * 0.28f);
+    float previewH = maxPreviewH;
+    float previewW = previewH * aspect;
+    const float maxPreviewW = fullViewport.Width * 0.42f;
+    if (previewW > maxPreviewW)
+    {
+        previewW = maxPreviewW;
+        previewH = previewW / aspect;
+    }
+
+    aoPreviewViewport.TopLeftX = margin;
+    aoPreviewViewport.TopLeftY = margin;
+    aoPreviewViewport.Width = previewW;
+    aoPreviewViewport.Height = previewH;
+    aoPreviewViewport.MinDepth = 0.0f;
+    aoPreviewViewport.MaxDepth = 1.0f;
+
+    const LONG left = static_cast<LONG>(margin);
+    const LONG top = static_cast<LONG>(margin);
+    const LONG right = static_cast<LONG>(margin + previewW);
+    const LONG bottom = static_cast<LONG>(margin + previewH);
+    aoPreviewScissor = {left, top, right, bottom};
+}
+
+void HybridSSAOApp::PopulateAoPreviewCorner(const std::shared_ptr<GCommandList>& cmdList)
+{
+    if (!showAoPreviewInCorner)
+    {
+        return;
+    }
+    if (pathMapShow == 2)
+    {
+        return;
+    }
+    if (aoPreviewViewport.Width <= 0.0f || aoPreviewViewport.Height <= 0.0f)
+    {
+        return;
+    }
+
+    const GDescriptor* aoSrv = nullptr;
+    if (IsUseHBAO && hbaoPass != nullptr)
+    {
+        aoSrv = hbaoPass->GetPrimeResources().GetAmbientMapSRV();
+    }
+    else if (IsUseXeGTAO && xegtaoPass != nullptr)
+    {
+        aoSrv = xegtaoPass->GetPrimeResources().GetAmbientMapSRV();
+    }
+    else if (ssaoPass != nullptr)
+    {
+        aoSrv = ssaoPass->GetPrimeResources().GetAmbientMapSRV();
+    }
+    if (aoSrv == nullptr)
+    {
+        return;
+    }
+
+    cmdList->SetViewports(&aoPreviewViewport, 1);
+    cmdList->SetScissorRects(&aoPreviewScissor, 1);
+
+    cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+    cmdList->SetDescriptorsHeap(aoSrv);
+    cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::AmbientMap, aoSrv, 0);
+    PopulateDrawCommands(cmdList, RenderMode::Quad);
+
+    cmdList->SetViewports(&fullViewport, 1);
+    cmdList->SetScissorRects(&fullRect, 1);
+}
+
 void HybridSSAOApp::Draw(const GameTimer& gt)
 {
     if (isResizing) return;
@@ -455,6 +553,8 @@ void HybridSSAOApp::Draw(const GameTimer& gt)
                                 0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
 
     PopulateDebugCommands(primeCmdList);
+
+    PopulateAoPreviewCorner(primeCmdList);
 
     UIPath->Render(primeCmdList);
 
@@ -573,6 +673,47 @@ bool HybridSSAOApp::Initialize()
             L"Hybrid HBAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
     };
     HybridHBAOState.OnExit = [this](FileQueueWriter& logs)
+    {
+        logs.WriteAllLog();
+        SwitchDevice();
+        Flush();
+        IsStop = true;
+    };
+
+    auto& NativeXeGTAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native XeGTAO ", *primeDevice, *secondDevice)));
+    NativeXeGTAOState.OnEnter = [this](FileQueueWriter& logs)
+    {
+        ResetCamera();
+        logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+    };
+    NativeXeGTAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
+    {
+        Benchmark::PrintStatsCSV(ts, logs);
+        MainWindow->SetWindowTitle(
+            L"Native XeGTAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+    };
+    NativeXeGTAOState.OnExit = [this](FileQueueWriter& logs)
+    {
+        logs.WriteAllLog();
+        Flush();
+    };
+
+    auto& HybridXeGTAOState = benchmark.AddState<WaitState>(
+        TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid XeGTAO ", *primeDevice, *secondDevice)));
+    HybridXeGTAOState.OnEnter = [this](FileQueueWriter& logs)
+    {
+        ResetCamera();
+        logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+        SwitchDevice();
+    };
+    HybridXeGTAOState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
+    {
+        Benchmark::PrintStatsCSV(ts, logs);
+        MainWindow->SetWindowTitle(
+            L"Hybrid XeGTAO Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+    };
+    HybridXeGTAOState.OnExit = [this](FileQueueWriter& logs)
     {
         logs.WriteAllLog();
         SwitchDevice();
@@ -1478,6 +1619,18 @@ void HybridSSAOApp::OnResize()
     {
         ssaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
     }
+
+    if (hbaoPass != nullptr)
+    {
+        hbaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    }
+
+    if (xegtaoPass != nullptr)
+    {
+        xegtaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    }
+
+    UpdateAoPreviewViewport();
 
     if (antiAliasingPrimePath != nullptr)
     {
