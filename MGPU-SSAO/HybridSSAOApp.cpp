@@ -236,6 +236,7 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
                 const auto& Resources = xegtaoPass->GetPrimeResources();
                 const auto& CrossResource = xegtaoPass->GetCrossResources();
                 cmdList->CopyResource(CrossResource.GetDepthMap().GetPrimeResource(), Resources.GetDepthMap());
+                cmdList->CopyResource(CrossResource.GetNormalMap().GetPrimeResource(), Resources.GetNormalMap());
                 cmdList->CopyResource(Resources.GetAmbientMap(), CrossResource.GetAmbientMap().GetPrimeResource());
             }
             {
@@ -246,6 +247,8 @@ void HybridSSAOApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLis
                     const auto& Resources = xegtaoPass->GetSecondResources();
                     const auto& CrossResource = xegtaoPass->GetCrossResources();
                     const auto secondCmdList = secondQueue->GetCommandList();
+                    secondCmdList->CopyResource(Resources.GetNormalMap(),
+                                                CrossResource.GetNormalMap().GetSharedResource());
                     secondCmdList->CopyResource(Resources.GetDepthMap(),
                                                 CrossResource.GetDepthMap().GetSharedResource());
 
