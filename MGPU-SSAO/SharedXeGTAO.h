@@ -35,6 +35,7 @@ class XeGTAOResources final : public SSAOResources
 public:
     struct Pass
     {
+        std::shared_ptr<GShader> Shader;
         std::shared_ptr<GRootSignature> RootSignature;
         std::shared_ptr<ComputePSO> PSO;
         int srvCount = 0;

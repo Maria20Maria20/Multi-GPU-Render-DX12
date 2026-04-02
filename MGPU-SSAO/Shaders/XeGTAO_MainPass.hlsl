@@ -18,17 +18,12 @@ Texture2D<float4> g_srcSceneNormals : register(t1);
 
 lpfloat3 LoadNormal(int2 pos)
 {
-    float3 normalWS = g_srcSceneNormals.Load(uint3(pos, 0)).xyz;
-    // ѕреобразование в view-space (зависит от вашей системы координат)
-    float3 normalVS = normalWS; // TODO: TransformWorldToViewNormal(normalWS, true);
-    normalVS.z *= -1;
-    normalVS.y *= -1;
-    return (lpfloat3) normalVS;
+    float3 n = g_srcSceneNormals.Load(uint3(pos, 0)).xyz;
+    return (lpfloat3)normalize(n);
 }
 
 lpfloat2 SpatioTemporalNoise(uint2 pixCoord, uint temporalIndex)
 {
-    // ѕростой шум дл€ примера
     uint seed = pixCoord.x + (pixCoord.y << 15);
     return lpfloat2(frac(seed * 0.618034), frac(seed * 0.382966));
 }

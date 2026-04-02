@@ -233,7 +233,7 @@ void XeGTAOResources::BuildPass(Pass& pass,
                                 int uavCount,
                                 int cbvCount)
 {
-    auto shader = std::make_unique<GShader>(
+    pass.Shader = std::make_shared<GShader>(
         fileName,
         ComputeShader, nullptr,
         entryPoint,
@@ -241,7 +241,7 @@ void XeGTAOResources::BuildPass(Pass& pass,
         L"",
         D3DCOMPILE_SKIP_OPTIMIZATION);
 
-    shader->LoadAndCompile();
+    pass.Shader->LoadAndCompile();
 
     pass.srvCount = srvCount;
     pass.uavCount = uavCount;
@@ -250,7 +250,7 @@ void XeGTAOResources::BuildPass(Pass& pass,
     pass.RootSignature = CreateXeGTAORootSignature(srvCount, uavCount, cbvCount);
 
     pass.PSO = std::make_shared<ComputePSO>();
-    pass.PSO->SetShader(shader.get());
+    pass.PSO->SetShader(pass.Shader.get());
     pass.PSO->SetRootSignature(*pass.RootSignature);
     pass.PSO->Initialize(device);
 }

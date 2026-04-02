@@ -1582,7 +1582,6 @@ void HybridSSAOApp::UpdateSsaoCB(const GameTimer& gt) const
     {
         GTAOConstants gtaoCB;
 
-        auto P = camera->GetProjectionMatrix();
         const GTAOSettings& settings = xegtaoPass->GetSettings();
 
         XeGTAO::GTAOUpdateConstants(
@@ -1590,7 +1589,7 @@ void HybridSSAOApp::UpdateSsaoCB(const GameTimer& gt) const
             MainWindow->GetClientWidth(),
             MainWindow->GetClientHeight(),
             settings,
-            (const float*)&P,
+            (const float*)&mainPassCB.Proj,
             false,
             0
             //frameCounter % 64  
