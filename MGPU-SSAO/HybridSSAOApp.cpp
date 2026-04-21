@@ -1671,11 +1671,6 @@ void HybridSSAOApp::Flush()
 
 LRESULT HybridSSAOApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
-    if (MainWindow && (msg == WM_CLOSE || (msg == WM_DESTROY && hwnd == MainWindow->GetWindowHandle())))
-    {
-        benchmark.Shutdown();
-    }
-
     UIPath->MsgProc(hwnd, msg, wParam, lParam);
 
 #if defined(DEBUG) || defined(_DEBUG)
