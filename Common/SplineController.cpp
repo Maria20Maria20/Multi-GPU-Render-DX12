@@ -4,36 +4,42 @@
 
 SplineController::SplineController(const BezierCurve& curve, float speed)
     : m_curve(curve)
-    , m_speed(speed)
-    , m_currentOffset(0.0f)
-    , m_isPlaying(true)
+      , m_speed(speed)
+      , m_currentOffset(0.0f)
+      , m_isPlaying(true)
 {
 }
 
 void SplineController::Update()
 {
     if (!m_isPlaying) return;
-    if (m_currentOffset > 1.0f) {
-        if (m_isPingPong) {
+    if (m_currentOffset > 1.0f)
+    {
+        if (m_isPingPong)
+        {
             m_currentOffset = 2.0f - m_currentOffset;
             m_direction = -1;
         }
-        else if (m_isLooping) {
+        else if (m_isLooping)
+        {
             m_currentOffset -= 1.0f;
         }
     }
-    else if (m_currentOffset < 0.0f) {
-        if (m_isPingPong) {
+    else if (m_currentOffset < 0.0f)
+    {
+        if (m_isPingPong)
+        {
             m_currentOffset = -m_currentOffset;
             m_direction = 1;
         }
-        else if (m_isLooping) {
+        else if (m_isLooping)
+        {
             m_currentOffset += 1.0f;
         }
     }
 
     const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
-    m_currentOffset += m_direction * m_speed *dt;
+    m_currentOffset += m_direction * m_speed * dt;
 
     Vector3 newPosition = m_curve.Evaluate(m_currentOffset);
 

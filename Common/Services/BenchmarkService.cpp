@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "BenchmarkService.h"
 #include "FileQueueWriter.h"
 
@@ -25,11 +25,6 @@ void BenchmarkService::Start()
     }
 }
 
-void BenchmarkService::Shutdown()
-{
-    SetState(nullptr);
-    currentStateIndex = -1;
-}
 
 void BenchmarkService::Tick(float deltaTime)
 {

@@ -4,7 +4,8 @@
 #include "GameObject.h"
 #include "Transform.h"
 
-class SplineController : public Component {
+class SplineController : public Component
+{
 public:
     /*
     Example:
@@ -34,7 +35,7 @@ public:
 
     void SetPingPong(bool pingPong);
     bool GetPingPong() const;
-    
+
     void SetCurve(const BezierCurve& curve);
     const BezierCurve& GetCurve() const;
 
@@ -48,4 +49,3 @@ private:
     bool m_isPingPong = false;
     int m_direction = 1;
 };
-

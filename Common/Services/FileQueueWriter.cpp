@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "FileQueueWriter.h"
 
 #include <fstream>
@@ -16,8 +16,7 @@ bool FileQueueWriter::WriteAllLog()
     OutputDebugStringW(filePath.c_str());
 
     std::wofstream fileSteam;
-    // out+trunc is enough; some STL implementations fail to open a new file when std::ios::in is set.
-    fileSteam.open(filePath.wstring().c_str(), std::ios::out | std::ios::trunc);
+    fileSteam.open(filePath.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
     if (fileSteam.is_open())
     {
         std::wstring line;
@@ -34,6 +33,5 @@ bool FileQueueWriter::WriteAllLog()
         fileSteam.close();
         return true;
     }
-    OutputDebugStringW(L"[FileQueueWriter] Failed to open log file for writing.\n");
     return false;
 }
