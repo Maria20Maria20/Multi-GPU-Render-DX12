@@ -596,7 +596,7 @@ bool HybridSSAOApp::Initialize()
 
     int TestTime = 10;
 #if !defined(DEBUG) && !defined(_DEBUG)
-    TestTime = 10;
+    TestTime = 120;
 #endif
 
 
