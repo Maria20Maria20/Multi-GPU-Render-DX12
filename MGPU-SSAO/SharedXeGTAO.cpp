@@ -294,19 +294,23 @@ void SharedXeGTAO::OnResize(UINT newWidth, UINT newHeight)
     crossResources.OnResize(newWidth, newHeight);
 }
 
+void SharedXeGTAO::UpdateCompositeConstants()
+{
+    XeGTAOCompositeConstants compositeCpu{};
+    compositeCpu.GTAOResolutionScale = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    compositeCpu.Intensity = gtaoSettings.FinalValuePower;
+    primeCompositeCB->CopyData(0, compositeCpu);
+    secondCompositeCB->CopyData(0, compositeCpu);
+}
+
 void SharedXeGTAO::Compute(const std::shared_ptr<GCommandList>& cmdList,
                            const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants,
                            const XeGTAOResources& Resources)
 {
     cmdList->StartMark(L"XeGTAO");
 
-    XeGTAOCompositeConstants compositeCpu{};
-    compositeCpu.GTAOResolutionScale = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-    compositeCpu.Intensity = gtaoSettings.FinalValuePower;
-
-    std::shared_ptr<ConstantUploadBuffer<XeGTAOCompositeConstants>> compositeGpu =
+    const std::shared_ptr<ConstantUploadBuffer<XeGTAOCompositeConstants>> compositeGpu =
         (&Resources == &primeResources) ? primeCompositeCB : secondCompositeCB;
-    compositeGpu->CopyData(0, compositeCpu);
 
     const GDescriptor* const xeBase = Resources.GetXeDescriptorBase();
 

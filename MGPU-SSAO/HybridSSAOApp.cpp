@@ -1597,6 +1597,8 @@ void HybridSSAOApp::UpdateSsaoCB(const GameTimer& gt) const
 
         currentFrameResource->PrimeXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
         currentFrameResource->SecondXeGTAOConstantUploadBuffer->CopyData(0, gtaoCB);
+
+        xegtaoPass->UpdateCompositeConstants();
     }
 }
 

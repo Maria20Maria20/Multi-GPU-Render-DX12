@@ -116,6 +116,7 @@ public:
     void Initialize(const std::shared_ptr<GDevice>& PrimeDevice, const std::shared_ptr<GDevice>& SecondDevice,
                     const D3D12_INPUT_LAYOUT_DESC& layout, UINT width, UINT height);
     void OnResize(UINT width, UINT height);
+    void UpdateCompositeConstants();
     void Compute(const std::shared_ptr<GCommandList>& cmdList,
                  const std::shared_ptr<ConstantUploadBuffer<GTAOConstants>>& Constants,
                  const XeGTAOResources& Resources);
