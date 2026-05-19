@@ -154,4 +154,7 @@ protected:
     Matrix RotaterSaveMatrix;
     Matrix CameraSaveMatrix;
     std::vector<ParticleEmitter*> emitters;
+    UINT maxLevel = 6;
+    bool isUsingWeightedTest = true;
+    bool isWaitedSecondDevice = false;
 };
